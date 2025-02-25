@@ -18,4 +18,4 @@ A simple WebGL-based 3D model viewer built with Three.js. This project loads GLB
 
 
 ## Demo
-You can view the live demo [here](https://your-github-username.github.io/glb-model-viewer/).
+https://yapweijun1996.github.io/GLB-Model-Viewer/
