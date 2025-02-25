@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GLB Model Viewer</title>
+  <style>
+    body { margin: 0; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- GLTFLoader -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <!-- OrbitControls -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- dat.GUI -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+  
+  <script>
+    // Scene, camera, renderer
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xbfd1e5);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    document.body.appendChild(renderer.domElement);
+    
+    // Hemisphere light for ambient lighting
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2);
+    hemiLight.position.set(0, 20, 0);
+    scene.add(hemiLight);
+    
+    // Directional light acting as the sun
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 13);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+    
+    // Create a sun sphere to visualize the light source
+    const sunGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+    const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+    sunMesh.position.copy(directionalLight.position);
+    scene.add(sunMesh);
+    
+    // OrbitControls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    
+    // Load GLB model
+    const loader = new THREE.GLTFLoader();
+    loader.load('ship.glb', (gltf) => {
+      const model = gltf.scene;
+      // Center the model
+      const bbox = new THREE.Box3().setFromObject(model);
+      const cent = bbox.getCenter(new THREE.Vector3());
+      model.position.sub(cent);
+      scene.add(model);
+      
+      // Adjust camera based on model size
+      const sphere = bbox.getBoundingSphere(new THREE.Sphere());
+      camera.position.set(0, 0, sphere.radius * 2.5);
+      camera.lookAt(new THREE.Vector3());
+      controls.target.copy(new THREE.Vector3());
+    }, undefined, (error) => {
+      console.error('Error loading model:', error);
+    });
+    
+    // dat.GUI panel for light adjustments
+    const gui = new dat.GUI();
+    
+    // Control the scene background (sky color)
+    const sceneSettings = { backgroundColor: '#' + scene.background.getHexString() };
+    gui.addColor(sceneSettings, 'backgroundColor').name('Sky Color').onChange(val => {
+      scene.background.set(val);
+    });
+    
+    // Hemisphere Light settings
+    const hemiSettings = {
+      intensity: hemiLight.intensity,
+      skyColor: '#' + hemiLight.color.getHexString(),
+      groundColor: '#' + hemiLight.groundColor.getHexString()
+    };
+    const hemiFolder = gui.addFolder('Hemisphere Light');
+    hemiFolder.add(hemiSettings, 'intensity', 0, 50, 0.1).onChange(val => { hemiLight.intensity = val; });
+    hemiFolder.addColor(hemiSettings, 'skyColor').onChange(val => { hemiLight.color.set(val); });
+    hemiFolder.addColor(hemiSettings, 'groundColor').onChange(val => { hemiLight.groundColor.set(val); });
+    hemiFolder.open();
+    
+    // Directional Light (Sun) settings, including position
+    const dirSettings = {
+      intensity: directionalLight.intensity,
+      color: '#' + directionalLight.color.getHexString(),
+      posX: directionalLight.position.x,
+      posY: directionalLight.position.y,
+      posZ: directionalLight.position.z
+    };
+    const dirFolder = gui.addFolder('Directional (Sun) Light');
+    dirFolder.add(dirSettings, 'intensity', 0, 50, 0.1).onChange(val => { directionalLight.intensity = val; });
+    dirFolder.addColor(dirSettings, 'color').onChange(val => { directionalLight.color.set(val); });
+    dirFolder.add(dirSettings, 'posX', -20, 20, 0.1).name('Direction X').onChange(val => { directionalLight.position.x = val; });
+    dirFolder.add(dirSettings, 'posY', -20, 20, 0.1).name('Direction Y').onChange(val => { directionalLight.position.y = val; });
+    dirFolder.add(dirSettings, 'posZ', -20, 20, 0.1).name('Direction Z').onChange(val => { directionalLight.position.z = val; });
+    dirFolder.open();
+    
+    // In the render loop, sync the sun sphere with the directional light
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      sunMesh.position.copy(directionalLight.position);
+      renderer.render(scene, camera);
+    }
+    animate();
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
